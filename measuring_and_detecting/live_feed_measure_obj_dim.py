@@ -1,33 +1,57 @@
 import cv2
-from object_detector import *
 import numpy as np
+import streamlit as st
+from object_detector import HomogeneousBgDetector
+from helpers import *
 
-# Load aruco detector
+# Initialize session state variables
+if 'start' not in st.session_state:
+    st.session_state.start = False
+if 'stop' not in st.session_state:
+    st.session_state.stop = False
+if 'save' not in st.session_state:
+    st.session_state.save = False
+
+st.title("MEASUREMENT OF OBJECT DIMENSIONS - OPENCV")
+
+frame_placeholder = st.empty()
+col1, col2, col3, col4 = st.columns(4)
+
+with col2:
+    st.button("Start", on_click=lambda: st.session_state.update({'start': True, 'stop': False}))
+with col3:
+    st.button("Stop", on_click=lambda: st.session_state.update({'stop': True, 'start': False}))
+with col4:
+    st.button("Save", on_click=lambda: st.session_state.update({'save': True}))
+
+# Load ArUco detector
 parameters = cv2.aruco.DetectorParameters()
-# detector_params = cv2.aruco.getDefaultParameters(dictionary=cv2.aruco.DICT_APRILTAG_36h11)
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
-
 
 # Load object detector
 detector = HomogeneousBgDetector()
 
 # Load the Cap
-cap= cv2.VideoCapture('http://100.70.206.220:8080/video')
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
+cap = cv2.VideoCapture('http://192.168.83.66:8080/video')
+# cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-while True:
-    _, img = cap.read()
+while cap.isOpened() and st.session_state.start:
+    ret, img = cap.read()
+    
+    if not ret:
+        st.write("The video capture has ended")
+        break
 
-    # Get Aruco marker
+    # Get ArUco marker
     corners, _, _ = cv2.aruco.detectMarkers(img, aruco_dict, parameters=parameters)
     if corners:
-
         # Draw polygon around the marker
-        int_corners = np.int0(corners)
+        int_corners = np.int_(corners)
         cv2.polylines(img, int_corners, True, (0, 255, 0), 5)
 
-        # Aruco Perimeter
+        # ArUco Perimeter
         aruco_perimeter = cv2.arcLength(corners[0], True)
 
         # Pixel to cm ratio
@@ -35,7 +59,7 @@ while True:
 
         contours = detector.detect_objects(img)
 
-        # Draw objects boundaries
+        # Draw objects boundaries and dimensions
         for cnt in contours:
             # Get rect
             rect = cv2.minAreaRect(cnt)
@@ -47,16 +71,25 @@ while True:
 
             # Display rectangle
             box = cv2.boxPoints(rect)
-            box = np.int0(box)
+            box = np.int_(box)
 
             cv2.circle(img, (int(x), int(y)), 5, (0, 0, 255), -1)
             cv2.polylines(img, [box], True, (255, 0, 0), 2)
-            cv2.putText(img, "Width {} cm".format(round(object_width, 1)), (int(x - 100), int(y - 20)), cv2.FONT_HERSHEY_PLAIN, 2, (100, 200, 0), 2)
-            cv2.putText(img, "Height {} cm".format(round(object_height, 1)), (int(x - 100), int(y + 15)), cv2.FONT_HERSHEY_PLAIN, 2, (100, 200, 0), 2)
+            cv2.putText(img, "Width: {:.1f} cm".format(object_width), (int(x - 100), int(y - 20)), cv2.FONT_HERSHEY_PLAIN, 2, (100, 200, 0), 2)
+            cv2.putText(img, "Height: {:.1f} cm".format(object_height), (int(x - 100), int(y + 15)), cv2.FONT_HERSHEY_PLAIN, 2, (100, 200, 0), 2)
+            
+        if st.session_state.save:
+            frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            cv2.imwrite("frame.png", frame)
+            st.session_state.save = False  # Reset save flag after saving
+            
+        if st.session_state.stop:
+            frame_placeholder.empty()
+            break
+        
+        frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        frame_placeholder.image(frame, channels="RGB")
 
-
-
-    cv2.imshow("Image", img)
     key = cv2.waitKey(1)
     if key == 27:
         break

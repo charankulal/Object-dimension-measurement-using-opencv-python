@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import streamlit as st
@@ -11,6 +12,10 @@ if 'stop' not in st.session_state:
     st.session_state.stop = False
 if 'save' not in st.session_state:
     st.session_state.save = False
+
+# Directory to save object images
+save_dir = 'saved_images'
+os.makedirs(save_dir, exist_ok=True)
 
 st.title("MEASUREMENT OF OBJECT DIMENSIONS - OPENCV")
 
@@ -60,7 +65,7 @@ while cap.isOpened() and st.session_state.start:
         contours = detector.detect_objects(img)
 
         # Draw objects boundaries and dimensions
-        for cnt in contours:
+        for i, cnt in enumerate(contours):
             # Get rect
             rect = cv2.minAreaRect(cnt)
             (x, y), (w, h), angle = rect
@@ -78,14 +83,14 @@ while cap.isOpened() and st.session_state.start:
             cv2.putText(img, "Width: {:.1f} cm".format(object_width), (int(x - 100), int(y - 20)), cv2.FONT_HERSHEY_PLAIN, 2, (100, 200, 0), 2)
             cv2.putText(img, "Height: {:.1f} cm".format(object_height), (int(x - 100), int(y + 15)), cv2.FONT_HERSHEY_PLAIN, 2, (100, 200, 0), 2)
             
+            if st.session_state.save:
+                # Extract and save each detected object
+                object_img = four_point_transform(img, box)
+                filename = f"object_{i}_width_{round(object_width, 1)}_height_{round(object_height, 1)}.png"
+                cv2.imwrite(os.path.join(save_dir, filename), object_img)
+                
         if st.session_state.save:
-            frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            cv2.imwrite("frame.png", frame)
             st.session_state.save = False  # Reset save flag after saving
-            
-        if st.session_state.stop:
-            frame_placeholder.empty()
-            break
         
         frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         frame_placeholder.image(frame, channels="RGB")

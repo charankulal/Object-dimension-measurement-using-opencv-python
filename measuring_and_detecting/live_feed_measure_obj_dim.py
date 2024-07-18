@@ -37,7 +37,7 @@ aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
 detector = HomogeneousBgDetector()
 
 # Load the Cap
-cap = cv2.VideoCapture('http://192.168.83.66:8080/video')
+cap = cv2.VideoCapture('http://192.168.124.176:8080/video')
 # cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -92,8 +92,8 @@ while cap.isOpened() and st.session_state.start:
         if st.session_state.save:
             st.session_state.save = False  # Reset save flag after saving
         
-        frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        frame_placeholder.image(frame, channels="RGB")
+    frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    frame_placeholder.image(frame, channels="RGB")
 
     key = cv2.waitKey(1)
     if key == 27:
